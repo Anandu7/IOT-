@@ -1,0 +1,41 @@
+import cv2
+import serial
+import smtplib
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+
+# Configure Serial communication with Arduino
+arduino = serial.Serial('COM3', 9600)  # Adjust COM port as needed
+
+# Function to send an email with an image attachment
+def send_email(image_path):
+    msg = MIMEMultipart()
+    msg['Subject'] = 'Intruder Alert!'
+    msg['From'] = 'your_email@example.com'
+    msg['To'] = 'recipient@example.com'
+
+    with open(image_path, 'rb') as f:
+        img_data = f.read()
+    image = MIMEImage(img_data, name='intruder.jpg')
+    msg.attach(image)
+
+    with smtplib.SMTP('smtp.example.com', 587) as server:
+        server.starttls()
+        server.login('your_email@example.com', 'your_password')
+        server.send_message(msg)
+
+# Loop to monitor for motion detection
+while True:
+    if arduino.in_waiting > 0:
+        data = arduino.readline().decode().strip()
+        if data == "Motion detected!":
+            # Capture an image with the laptop camera
+            cap = cv2.VideoCapture(0)
+            ret, frame = cap.read()
+            image_path = 'intruder.jpg'
+            cv2.imwrite(image_path, frame)
+            cap.release()
+
+            # Send email with the image
+            send_email(image_path)
+            print("Alert email sent with intruder image!")
